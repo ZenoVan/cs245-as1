@@ -66,8 +66,12 @@ public class ColumnTable implements Table {
      */
     @Override
     public long columnSum() {
-        // TODO: Implement this!
-        return 0;
+        long sum = 0;
+        for(int i = 0; i < numRows; i++) {
+            int offset = i * ByteFormat.FIELD_LEN;
+            sum += columns.getInt(offset);
+        }
+        return sum;
     }
 
     /**
@@ -79,8 +83,16 @@ public class ColumnTable implements Table {
      */
     @Override
     public long predicatedColumnSum(int threshold1, int threshold2) {
-        // TODO: Implement this!
-        return 0;
+        long sum = 0;
+        for(int i = 0; i < numRows; i++) {
+            int offset = i * ByteFormat.FIELD_LEN;
+            int col1 = columns.getInt(offset + ByteFormat.FIELD_LEN * numRows);
+            int col2 = columns.getInt(offset + ByteFormat.FIELD_LEN * numRows * 2);
+            if(col1 > threshold1 && col2 < threshold2) {
+                sum += columns.getInt(offset);
+            }
+        }
+        return sum;
     }
 
     /**
@@ -91,8 +103,16 @@ public class ColumnTable implements Table {
      */
     @Override
     public long predicatedAllColumnsSum(int threshold) {
-        // TODO: Implement this!
-        return 0;
+        long sum = 0;
+        for(int i = 0; i < numRows; i++) {
+            int offset = i * ByteFormat.FIELD_LEN ;
+            if(columns.getInt(offset) > threshold) {
+                for(int j = 0; j < numCols; j++) {
+                    sum += columns.getInt(offset + j * ByteFormat.FIELD_LEN * numRows);
+                }
+            }
+        }
+        return sum;
     }
 
     /**
@@ -103,7 +123,16 @@ public class ColumnTable implements Table {
      */
     @Override
     public int predicatedUpdate(int threshold) {
-        // TODO: Implement this!
-        return 0;
+        int count = 0;
+        for(int i = 0; i < numRows; i++) {
+            int offset = i * ByteFormat.FIELD_LEN;
+            if(columns.getInt(offset) < threshold) {
+                count++;
+                columns.putInt(offset + ByteFormat.FIELD_LEN * numRows * 3,
+                        columns.getInt(offset + ByteFormat.FIELD_LEN * numRows * 2)
+                                + columns.getInt(offset + ByteFormat.FIELD_LEN * numRows));
+            }
+        }
+        return count;
     }
 }

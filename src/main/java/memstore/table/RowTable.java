@@ -13,11 +13,17 @@ import java.util.List;
  *   row 1 | row 2 | ... | row n.
  */
 public class RowTable implements Table {
-    protected int numCols;
-    protected int numRows;
+    protected int numCols; // 列数
+    protected int numRows; // 行数
     protected ByteBuffer rows;
 
     public RowTable() { }
+
+    public RowTable(int numCols, int numRows, ByteBuffer rows) {
+        this.numCols = numCols;
+        this.numRows = numRows;
+        this.rows = rows;
+    }
 
     /**
      * Loads data into the table through passed-in data loader. Is not timed.
@@ -26,17 +32,17 @@ public class RowTable implements Table {
      * @throws IOException
      */
     @Override
-    public void load(DataLoader loader) throws IOException {
+    public void load(DataLoader loader) throws IOException { // 从DataLoader对象里面 按行优先 取出数据放入rows
         this.numCols = loader.getNumCols();
         List<ByteBuffer> rows = loader.getRows();
         numRows = rows.size();
-        this.rows = ByteBuffer.allocate(ByteFormat.FIELD_LEN * numRows * numCols);
+        this.rows = ByteBuffer.allocate(ByteFormat.FIELD_LEN * numRows * numCols); // 分配内存
 
         for (int rowId = 0; rowId < numRows; rowId++) {
-            ByteBuffer curRow = rows.get(rowId);
-            for (int colId = 0; colId < numCols; colId++) {
-                int offset = ByteFormat.FIELD_LEN * ((rowId * numCols) + colId);
-                this.rows.putInt(offset, curRow.getInt(ByteFormat.FIELD_LEN * colId));
+            ByteBuffer curRow = rows.get(rowId); // 取出一行
+            for (int colId = 0; colId < numCols; colId++) { // 取出某一格
+                int offset = ByteFormat.FIELD_LEN * ((rowId * numCols) + colId); // 偏移量
+                this.rows.putInt(offset, curRow.getInt(ByteFormat.FIELD_LEN * colId)); // 根据index（offset）放入value
             }
         }
     }
@@ -46,8 +52,8 @@ public class RowTable implements Table {
      */
     @Override
     public int getIntField(int rowId, int colId) {
-        // TODO: Implement this!
-        return 0;
+        int offset = ByteFormat.FIELD_LEN * (rowId * numCols + colId);
+        return rows.getInt(offset);
     }
 
     /**
@@ -55,7 +61,8 @@ public class RowTable implements Table {
      */
     @Override
     public void putIntField(int rowId, int colId, int field) {
-        // TODO: Implement this!
+        int offset = ByteFormat.FIELD_LEN * (rowId * numCols + colId);
+        rows.putInt(offset, field);
     }
 
     /**
@@ -66,8 +73,12 @@ public class RowTable implements Table {
      */
     @Override
     public long columnSum() {
-        // TODO: Implement this!
-        return 0;
+        long sum = 0;
+        for(int i = 0; i < numRows; i++) {
+            int offset = i * ByteFormat.FIELD_LEN * numCols;
+            sum += rows.getInt(offset);
+        }
+        return sum;
     }
 
     /**
@@ -79,8 +90,16 @@ public class RowTable implements Table {
      */
     @Override
     public long predicatedColumnSum(int threshold1, int threshold2) {
-        // TODO: Implement this!
-        return 0;
+        long sum = 0;
+        for(int i = 0; i < numRows; i++) {
+            int offset = i * ByteFormat.FIELD_LEN * numCols;
+            int col1 = rows.getInt(offset + ByteFormat.FIELD_LEN);
+            int col2 = rows.getInt(offset + ByteFormat.FIELD_LEN * 2);
+            if(col1 > threshold1 && col2 < threshold2) {
+                sum += rows.getInt(offset);
+            }
+        }
+        return sum;
     }
 
     /**
@@ -91,8 +110,16 @@ public class RowTable implements Table {
      */
     @Override
     public long predicatedAllColumnsSum(int threshold) {
-        // TODO: Implement this!
-        return 0;
+        long sum = 0;
+        for(int i = 0; i < numRows; i++) {
+            int offset = i * ByteFormat.FIELD_LEN * numCols;
+            if(rows.getInt(offset) > threshold) {
+                for(int j = 0; j < numCols; j++) {
+                    sum += rows.getInt(offset + j * ByteFormat.FIELD_LEN);
+                }
+            }
+        }
+        return sum;
     }
 
     /**
@@ -103,7 +130,16 @@ public class RowTable implements Table {
      */
     @Override
     public int predicatedUpdate(int threshold) {
-        // TODO: Implement this!
-        return 0;
+        int count = 0;
+        for(int i = 0; i < numRows; i++) {
+            int offset = i * ByteFormat.FIELD_LEN * numCols;
+            if(rows.getInt(offset) < threshold) {
+                count++;
+                rows.putInt(offset + ByteFormat.FIELD_LEN * 3,
+                        rows.getInt(offset + ByteFormat.FIELD_LEN * 2)
+                                + rows.getInt(offset + ByteFormat.FIELD_LEN));
+            }
+        }
+        return count;
     }
 }
